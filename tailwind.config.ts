@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,27 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Radio content type colors
+				news: {
+					DEFAULT: '#EF4444',
+					light: '#FEE2E2',
+					dark: '#B91C1C'
+				},
+				music: {
+					DEFAULT: '#10B981',
+					light: '#D1FAE5',
+					dark: '#047857'
+				},
+				podcast: {
+					DEFAULT: '#F59E0B',
+					light: '#FEF3C7',
+					dark: '#B45309'
+				},
+				talk: {
+					DEFAULT: '#8B5CF6',
+					light: '#EDE9FE',
+					dark: '#6D28D9'
 				}
 			},
 			borderRadius: {
@@ -84,11 +106,24 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'slide-in': {
+					'0%': { transform: 'translateX(-100%)' },
+					'100%': { transform: 'translateX(0)' }
+				},
+				'audio-wave': {
+					'0%': { height: '5px' },
+					'50%': { height: '20px' },
+					'100%': { height: '5px' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'slide-in': 'slide-in 0.3s ease-out',
+				'audio-wave-1': 'audio-wave 1s ease-in-out infinite',
+				'audio-wave-2': 'audio-wave 1.2s ease-in-out infinite',
+				'audio-wave-3': 'audio-wave 0.8s ease-in-out infinite'
 			}
 		}
 	},

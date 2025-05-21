@@ -123,9 +123,27 @@ export default {
 				'slide-in': 'slide-in 0.3s ease-out',
 				'audio-wave-1': 'audio-wave 1s ease-in-out infinite',
 				'audio-wave-2': 'audio-wave 1.2s ease-in-out infinite',
-				'audio-wave-3': 'audio-wave 0.8s ease-in-out infinite'
+				'audio-wave-3': 'audio-wave 0.8s ease-in-out infinite',
+			},
+			// Add animation delay utilities
+			animationDelay: {
+				'300': '300ms',
+				'600': '600ms',
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		// Add custom plugin for animation delay
+		function({ addUtilities, theme }) {
+			const animationDelays = theme('animationDelay', {});
+			const utilities = Object.entries(animationDelays).map(([key, value]) => ({
+				[`.animation-delay-${key}`]: {
+					'animation-delay': value
+				}
+			}));
+			
+			addUtilities(utilities);
+		}
+	],
 } satisfies Config;

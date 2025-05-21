@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, Clock, Tag } from 'lucide-react';
+import { Calendar, Clock, Tag, FileText, Music, Mic } from 'lucide-react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

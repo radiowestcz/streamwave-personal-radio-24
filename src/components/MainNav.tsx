@@ -30,7 +30,8 @@ import {
 
 const MainNav: React.FC = () => {
   const location = useLocation();
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const [activeGroup, setActiveGroup] = useState<string | null>("content");
   
   const isActive = (path: string) => location.pathname === path;
@@ -89,7 +90,7 @@ const MainNav: React.FC = () => {
   return (
     <Sidebar
       className={`border-r border-border ${collapsed ? "w-16" : "w-64"} transition-all duration-300`}
-      collapsible
+      collapsible="icon"
     >
       <div className={`flex items-center justify-between p-4 ${collapsed ? "px-2" : "px-4"}`}>
         <Link to="/dashboard" className="flex-1">
@@ -99,11 +100,7 @@ const MainNav: React.FC = () => {
       
       <SidebarContent className="px-2">
         {navLinks.map((group) => (
-          <SidebarGroup 
-            key={group.group}
-            open={activeGroup === group.group}
-            onOpenChange={() => setActiveGroup(activeGroup === group.group ? null : group.group)}
-          >
+          <SidebarGroup key={group.group}>
             <SidebarGroupLabel 
               className={`text-xs text-muted-foreground uppercase ${collapsed ? 'sr-only' : ''}`}
             >

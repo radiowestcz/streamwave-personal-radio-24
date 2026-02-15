@@ -1,9 +1,9 @@
-
 import React from 'react';
-import { Calendar, Clock, Tag, FileText, Music, Mic } from 'lucide-react';
+import { Calendar, Clock, Tag, FileText, Music, Mic, Image } from 'lucide-react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 export type ContentType = 'news' | 'music' | 'podcast' | 'talk';
@@ -25,12 +25,18 @@ interface ContentCardProps {
   item: ContentItem;
   onPlay?: () => void;
   onEdit?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
 const ContentCard: React.FC<ContentCardProps> = ({
   item,
   onPlay,
-  onEdit
+  onEdit,
+  selectable = false,
+  selected = false,
+  onSelect,
 }) => {
   const { title, type, artist, duration, createdAt, tags, thumbnail, isActive } = item;
   
@@ -44,7 +50,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
   return (
     <Card className={cn(
       "overflow-hidden h-full flex flex-col",
-      !isActive && "opacity-70"
+      !isActive && "opacity-70",
+      selected && "ring-2 ring-primary"
     )}>
       <div className="relative pb-[60%] bg-muted">
         {thumbnail ? (
@@ -64,6 +71,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
         <Badge className={cn("absolute top-2 right-2", typeColors[type])}>
           {type}
         </Badge>
+        {selectable && (
+          <div className="absolute top-2 left-2">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={(checked) => onSelect?.(item.id, !!checked)}
+              className="bg-background/80 border-foreground/50"
+            />
+          </div>
+        )}
       </div>
       
       <CardContent className="flex-1 p-4">

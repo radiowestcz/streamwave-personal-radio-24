@@ -25,7 +25,8 @@ import {
   FileAudio, 
   Play, 
   Folder, 
-  FileText
+  FileText,
+  Settings
 } from 'lucide-react';
 
 const MainNav: React.FC = () => {
@@ -65,6 +66,7 @@ const MainNav: React.FC = () => {
       links: [
         { href: "/player", label: "Player", icon: <Play className="w-4 h-4" /> },
         { href: "/embed-generator", label: "Embed Code", icon: <FileText className="w-4 h-4" /> },
+        { href: "/radio-settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
       ]
     }
   ];

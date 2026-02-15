@@ -1,262 +1,184 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import AdminHeader from '@/components/AdminHeader';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { format, addDays, startOfWeek } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Trash2, Plus, Loader2 } from "lucide-react";
+import { useScheduleSlots, useCreateScheduleSlot, useDeleteScheduleSlot } from '@/hooks/useScheduleSlots';
+import { useTemplates } from '@/hooks/useTemplates';
 
-const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const hours = Array.from({ length: 24 }, (_, i) => i);
+const DAYS = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-interface ScheduleSlot {
-  id: string;
-  day: string;
-  startHour: number;
-  endHour: number;
-  template: {
-    id: string;
-    name: string;
-    color: string;
-  };
-}
-
-// Mock data
-const mockScheduleSlots: ScheduleSlot[] = [
-  {
-    id: "slot-1",
-    day: "Monday",
-    startHour: 6,
-    endHour: 10,
-    template: { id: "t1", name: "Morning Drive", color: "bg-blue-500" }
-  },
-  {
-    id: "slot-2",
-    day: "Monday",
-    startHour: 10,
-    endHour: 13,
-    template: { id: "t2", name: "Midday Mix", color: "bg-green-500" }
-  },
-  {
-    id: "slot-3",
-    day: "Monday",
-    startHour: 13,
-    endHour: 16,
-    template: { id: "t3", name: "Afternoon Show", color: "bg-yellow-500" }
-  },
-  {
-    id: "slot-4",
-    day: "Monday",
-    startHour: 16,
-    endHour: 19,
-    template: { id: "t4", name: "Evening Drive", color: "bg-purple-500" }
-  },
-  {
-    id: "slot-5",
-    day: "Monday",
-    startHour: 19,
-    endHour: 22,
-    template: { id: "t5", name: "Evening Show", color: "bg-pink-500" }
-  },
-  {
-    id: "slot-6",
-    day: "Tuesday",
-    startHour: 6,
-    endHour: 10,
-    template: { id: "t1", name: "Morning Drive", color: "bg-blue-500" }
-  },
-  {
-    id: "slot-7",
-    day: "Tuesday",
-    startHour: 10,
-    endHour: 13,
-    template: { id: "t2", name: "Midday Mix", color: "bg-green-500" }
-  },
-  {
-    id: "slot-8",
-    day: "Wednesday",
-    startHour: 6,
-    endHour: 10,
-    template: { id: "t1", name: "Morning Drive", color: "bg-blue-500" }
-  },
-  {
-    id: "slot-9",
-    day: "Wednesday",
-    startHour: 10,
-    endHour: 13,
-    template: { id: "t2", name: "Midday Mix", color: "bg-green-500" }
-  },
-  {
-    id: "slot-10",
-    day: "Thursday",
-    startHour: 6,
-    endHour: 10,
-    template: { id: "t1", name: "Morning Drive", color: "bg-blue-500" }
-  },
-  {
-    id: "slot-11",
-    day: "Friday",
-    startHour: 6,
-    endHour: 10,
-    template: { id: "t1", name: "Morning Drive", color: "bg-blue-500" }
-  },
-  {
-    id: "slot-12",
-    day: "Saturday",
-    startHour: 8,
-    endHour: 12,
-    template: { id: "t6", name: "Weekend Morning", color: "bg-orange-500" }
-  },
-  {
-    id: "slot-13",
-    day: "Sunday",
-    startHour: 8,
-    endHour: 12,
-    template: { id: "t6", name: "Weekend Morning", color: "bg-orange-500" }
-  },
+const SLOT_COLORS = [
+  'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500',
+  'bg-pink-500', 'bg-orange-500', 'bg-teal-500', 'bg-red-500',
 ];
 
+const formatHour = (h: number) =>
+  h === 0 ? '0:00' : h < 10 ? `${h}:00` : `${h}:00`;
+
 const Schedule: React.FC = () => {
-  const [date, setDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<string>("week");
-  
-  const formatHour = (hour: number) => {
-    return hour === 0 ? "12 AM" : 
-           hour < 12 ? `${hour} AM` : 
-           hour === 12 ? "12 PM" : 
-           `${hour - 12} PM`;
+  const { data: slots = [], isLoading } = useScheduleSlots();
+  const { data: templates = [] } = useTemplates();
+  const createSlot = useCreateScheduleSlot();
+  const deleteSlot = useDeleteScheduleSlot();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newDay, setNewDay] = useState('1');
+  const [newStart, setNewStart] = useState('6');
+  const [newEnd, setNewEnd] = useState('10');
+  const [newTemplateId, setNewTemplateId] = useState('');
+
+  // Color mapping per template
+  const templateColorMap = new Map<string, string>();
+  templates.forEach((t, i) => {
+    templateColorMap.set(t.id, SLOT_COLORS[i % SLOT_COLORS.length]);
+  });
+
+  const handleCreate = () => {
+    if (!newTemplateId) return;
+    createSlot.mutate({
+      day_of_week: parseInt(newDay),
+      start_hour: parseInt(newStart),
+      end_hour: parseInt(newEnd),
+      template_id: newTemplateId,
+    }, {
+      onSuccess: () => setDialogOpen(false),
+    });
   };
-  
-  const getScheduleForDay = (day: string) => {
-    return mockScheduleSlots.filter(slot => slot.day === day);
-  };
-  
-  const renderWeekSchedule = () => {
-    return (
-      <div className="overflow-auto">
-        <div className="min-w-[800px]">
-          <div className="grid grid-cols-8 gap-1">
-            {/* Time labels column */}
-            <div className="col-span-1">
-              <div className="h-12 flex items-end justify-center pb-2 font-medium">
-                Time
-              </div>
-              {hours.map(hour => (
-                <div key={hour} className="h-16 flex items-center justify-end pr-4 text-sm">
-                  {formatHour(hour)}
-                </div>
-              ))}
-            </div>
-            
-            {/* Days columns */}
-            {days.map(day => (
-              <div key={day} className="col-span-1">
-                <div className="h-12 bg-muted flex items-center justify-center font-medium">
-                  {day}
-                </div>
-                <div className="relative" style={{ height: `${hours.length * 4}rem` }}>
-                  {hours.map(hour => (
-                    <div 
-                      key={hour} 
-                      className="absolute w-full h-16 border-t border-border"
-                      style={{ top: `${hour * 4}rem` }}
-                    />
-                  ))}
-                  
-                  {getScheduleForDay(day).map(slot => (
-                    <div
-                      key={slot.id}
-                      className={`absolute w-full rounded-md ${slot.template.color} bg-opacity-80 text-white p-2 overflow-hidden`}
-                      style={{
-                        top: `${slot.startHour * 4}rem`,
-                        height: `${(slot.endHour - slot.startHour) * 4}rem`
-                      }}
-                    >
-                      <div className="font-medium text-sm">{slot.template.name}</div>
-                      <div className="text-xs opacity-80">
-                        {formatHour(slot.startHour)} - {formatHour(slot.endHour)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
+
+  const getSlotsForDay = (day: number) => slots.filter(s => s.day_of_week === day);
+
   return (
     <Layout>
-      <AdminHeader 
-        title="Broadcast Schedule" 
-        description="Manage when templates are broadcast"
-      />
-      
+      <AdminHeader title="Rozvrh vysílání" description="Přiřaďte šablony ke dnům a hodinám" />
+
       <div className="p-6 space-y-6">
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Schedule</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(newDate) => newDate && setDate(newDate)}
-                className="rounded-md border"
-              />
-              
-              <div className="space-y-2">
-                <div className="text-sm font-medium">View Mode</div>
-                <Select value={viewMode} onValueChange={setViewMode}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="View mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="week">Week View</SelectItem>
-                    <SelectItem value="day">Day View</SelectItem>
-                  </SelectContent>
-                </Select>
+        <div className="flex justify-between items-center">
+          <div className="flex flex-wrap gap-2">
+            {templates.map((t) => (
+              <span key={t.id} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${templateColorMap.get(t.id)}`}>
+                {t.name}
+              </span>
+            ))}
+          </div>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Přidat slot</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Nový slot v rozvrhu</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Den</Label>
+                  <Select value={newDay} onValueChange={setNewDay}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Od (hodina)</Label>
+                    <Select value={newStart} onValueChange={setNewStart}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {HOURS.map(h => <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Do (hodina)</Label>
+                    <Select value={newEnd} onValueChange={setNewEnd}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {HOURS.filter(h => h > 0).map(h => <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Šablona</Label>
+                  <Select value={newTemplateId} onValueChange={setNewTemplateId}>
+                    <SelectTrigger><SelectValue placeholder="Vyber šablonu" /></SelectTrigger>
+                    <SelectContent>
+                      {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={handleCreate} disabled={createSlot.isPending || !newTemplateId}>
+                  {createSlot.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Přidat
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Templates</div>
-                <div className="space-y-2">
-                  <Badge className="bg-blue-500 hover:bg-blue-600">Morning Drive</Badge>
-                  <Badge className="bg-green-500 hover:bg-green-600">Midday Mix</Badge>
-                  <Badge className="bg-yellow-500 hover:bg-yellow-600">Afternoon Show</Badge>
-                  <Badge className="bg-purple-500 hover:bg-purple-600">Evening Drive</Badge>
-                  <Badge className="bg-pink-500 hover:bg-pink-600">Evening Show</Badge>
-                  <Badge className="bg-orange-500 hover:bg-orange-600">Weekend Morning</Badge>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : (
+          <Card>
+            <CardContent className="p-0 overflow-auto">
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-8 border-b">
+                  <div className="p-3 font-medium text-sm text-muted-foreground">Čas</div>
+                  {DAYS.map((d, i) => (
+                    <div key={i} className="p-3 font-medium text-sm text-center border-l">{d}</div>
+                  ))}
+                </div>
+                <div className="relative">
+                  {/* Hour grid lines */}
+                  <div className="grid grid-cols-8">
+                    <div>
+                      {HOURS.map(h => (
+                        <div key={h} className="h-12 flex items-center justify-end pr-3 text-xs text-muted-foreground border-b">
+                          {formatHour(h)}
+                        </div>
+                      ))}
+                    </div>
+                    {DAYS.map((_, dayIdx) => (
+                      <div key={dayIdx} className="relative border-l" style={{ height: `${24 * 3}rem` }}>
+                        {HOURS.map(h => (
+                          <div key={h} className="absolute w-full border-b border-border/50" style={{ top: `${h * 3}rem`, height: '3rem' }} />
+                        ))}
+                        {getSlotsForDay(dayIdx).map(slot => {
+                          const color = templateColorMap.get(slot.template_id) || 'bg-primary';
+                          const templateName = slot.template?.name || 'Šablona';
+                          return (
+                            <div
+                              key={slot.id}
+                              className={`absolute left-1 right-1 rounded-md ${color} text-white p-1.5 overflow-hidden group cursor-default`}
+                              style={{
+                                top: `${slot.start_hour * 3}rem`,
+                                height: `${(slot.end_hour - slot.start_hour) * 3}rem`,
+                              }}
+                            >
+                              <div className="font-medium text-xs leading-tight">{templateName}</div>
+                              <div className="text-[10px] opacity-80">{formatHour(slot.start_hour)} – {formatHour(slot.end_hour)}</div>
+                              <button
+                                onClick={() => deleteSlot.mutate(slot.id)}
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded p-0.5"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              <Button className="w-full mt-4">
-                Add Schedule Slot
-              </Button>
             </CardContent>
           </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Weekly Schedule</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderWeekSchedule()}
-            </CardContent>
-          </Card>
-        </div>
+        )}
       </div>
     </Layout>
   );

@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, SkipForward, Volume2, VolumeX, Mic, Music, FileText, FileAudio, Bell, Radio, Megaphone } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Mic, Music, FileText, FileAudio, Bell, Radio, Megaphone, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useContentItems, useRadioSettings, ContentType } from '@/hooks/useContentItems';
 import { useRadioEngine } from '@/hooks/useRadioEngine';
+import { useSchedulePlaylist } from '@/hooks/useSchedulePlaylist';
 import { Loader2 } from 'lucide-react';
 
 const contentTypeIcons: Record<ContentType, JSX.Element> = {
@@ -27,15 +28,26 @@ const contentTypeIcons: Record<ContentType, JSX.Element> = {
 const Player: React.FC = () => {
   const { data: contentItems = [], isLoading } = useContentItems();
   const { data: settings = {} } = useRadioSettings();
+  const schedulePlaylist = useSchedulePlaylist();
+  const [useSchedule, setUseSchedule] = useState(true);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
 
   const crossfadeDuration = parseFloat(settings.crossfade_duration || '3');
   const underscoreVolume = parseFloat(settings.underscore_volume || '15') / 100;
-
   const engine = useRadioEngine({ crossfadeDuration, underscoreVolume, settings });
 
-  const playableItems = contentItems.filter(item => item.file_url || item.external_url);
+  // Determine playlist source
+  const allPlayable = contentItems.filter(item => item.file_url || item.external_url);
+  const playableItems = useSchedule && schedulePlaylist.items.length > 0
+    ? schedulePlaylist.items.filter(item => item.file_url || item.external_url)
+    : allPlayable;
+
   const currentTrack = playableItems[currentTrackIndex];
+
+  // Reset index when playlist source changes
+  useEffect(() => {
+    setCurrentTrackIndex(0);
+  }, [useSchedule, schedulePlaylist.activeSlot?.id]);
 
   // Load track when index changes
   useEffect(() => {
@@ -53,21 +65,18 @@ const Player: React.FC = () => {
   const skipTrack = useCallback(() => {
     if (currentTrackIndex < playableItems.length - 1) {
       const nextItem = playableItems[currentTrackIndex + 1];
-      // Use crossfade for music -> music transitions
       if (currentTrack?.type === 'music' && nextItem.type === 'music') {
-        engine.crossfadeTo(nextItem, () => {
-          setCurrentTrackIndex(prev => prev + 1);
-        });
+        engine.crossfadeTo(nextItem, () => setCurrentTrackIndex(prev => prev + 1));
       } else {
         setCurrentTrackIndex(prev => prev + 1);
       }
       toast.success("Next: " + nextItem.title);
     } else {
-      toast.error("End of queue");
+      toast.error("Konec playlistu");
     }
   }, [currentTrackIndex, playableItems, currentTrack, engine]);
 
-  // Auto-advance when track ends
+  // Auto-advance
   useEffect(() => {
     const audio = engine.mainAudioRef.current;
     if (!audio) return;
@@ -85,9 +94,8 @@ const Player: React.FC = () => {
 
   const progress = engine.duration > 0 ? (engine.currentTime / engine.duration) * 100 : 0;
 
-  const getCoverUrl = (item: typeof playableItems[0]) => {
-    return item.cover_image_url || settings[`default_cover_${item.type}`] || null;
-  };
+  const getCoverUrl = (item: typeof playableItems[0]) =>
+    item.cover_image_url || settings[`default_cover_${item.type}`] || null;
 
   if (isLoading) {
     return (
@@ -98,25 +106,45 @@ const Player: React.FC = () => {
     );
   }
 
+  const activeTemplateName = schedulePlaylist.activeSlot?.template?.name;
+
   return (
     <Layout>
       <AdminHeader title="Radio Player" description="Preview your radio experience" />
 
       <div className="p-6">
+        {/* Schedule indicator */}
+        <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant={useSchedule ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseSchedule(!useSchedule)}
+          >
+            <CalendarClock className="h-4 w-4 mr-2" />
+            {useSchedule ? 'Podle rozvrhu' : 'Všechny stopy'}
+          </Button>
+          {useSchedule && activeTemplateName && (
+            <Badge variant="secondary">
+              Aktuální šablona: {activeTemplateName}
+            </Badge>
+          )}
+          {useSchedule && !activeTemplateName && (
+            <span className="text-sm text-muted-foreground">Žádná šablona pro aktuální čas – přehráno vše</span>
+          )}
+        </div>
+
         <div className="grid gap-8 md:grid-cols-7">
           <Card className="md:col-span-5">
             <CardHeader><CardTitle>Now Playing {engine.isCrossfading && <span className="text-xs text-muted-foreground ml-2">crossfading...</span>}</CardTitle></CardHeader>
             <CardContent>
               {!currentTrack ? (
-                <p className="text-muted-foreground text-center py-8">No playable content. Add content with audio files first.</p>
+                <p className="text-muted-foreground text-center py-8">Žádný přehratelný obsah. Přidejte obsah s audio soubory.</p>
               ) : (
                 <div className="flex flex-col md:flex-row gap-6 items-center">
                   <div className="min-w-[180px] w-[180px] h-[180px] bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                     {getCoverUrl(currentTrack) ? (
                       <img src={getCoverUrl(currentTrack)!} alt={currentTrack.title} className="w-full h-full object-cover" />
-                    ) : (
-                      contentTypeIcons[currentTrack.type]
-                    )}
+                    ) : contentTypeIcons[currentTrack.type]}
                   </div>
 
                   <div className="flex-1 space-y-4 w-full">
@@ -189,14 +217,12 @@ const Player: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm truncate">{item.title}</h4>
-                      <div className="text-xs text-muted-foreground">
-                        {item.artist || item.type}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{item.artist || item.type}</div>
                     </div>
                   </div>
                 ))}
                 {playableItems.slice(currentTrackIndex + 1).length === 0 && (
-                  <p className="text-center py-4 text-muted-foreground text-sm">No more items in queue</p>
+                  <p className="text-center py-4 text-muted-foreground text-sm">Žádné další položky</p>
                 )}
               </div>
             </CardContent>

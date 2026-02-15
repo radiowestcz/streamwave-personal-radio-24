@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, Plus, Upload, Loader2 } from 'lucide-react';
-import { useContentItems, useCreateContent, useDeleteContent, useUpdateContent, useUploadAudio, ContentType } from '@/hooks/useContentItems';
+import { Search, Plus, Upload, Loader2, Trash2, Image } from 'lucide-react';
+import { useContentItems, useCreateContent, useDeleteContent, useUpdateContent, useUploadAudio, useUploadCover, useBulkDeleteContent, ContentType } from '@/hooks/useContentItems';
+import { readID3Tags, searchMusicBrainzCover } from '@/lib/id3';
 import ContentCard from '@/components/ContentCard';
 import BulkUpload from '@/components/BulkUpload';
 import { toast } from 'sonner';
@@ -19,6 +20,8 @@ const ContentManager: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [filterActive, setFilterActive] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
 
   // New content form state
   const [newTitle, setNewTitle] = useState('');
@@ -28,56 +31,76 @@ const ContentManager: React.FC = () => {
   const [newTags, setNewTags] = useState('');
   const [newExternalUrl, setNewExternalUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [isExtractingId3, setIsExtractingId3] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const typeFilter = selectedTab === 'all' ? undefined : selectedTab as ContentType;
   const { data: contentItems = [], isLoading } = useContentItems(typeFilter);
   const createContent = useCreateContent();
   const deleteContent = useDeleteContent();
+  const bulkDelete = useBulkDeleteContent();
   const updateContent = useUpdateContent();
   const uploadAudio = useUploadAudio();
+  const uploadCover = useUploadCover();
 
   const getFilteredContent = () => {
     let filtered = [...contentItems];
-
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item =>
         item.title.toLowerCase().includes(query) ||
         (item.artist && item.artist.toLowerCase().includes(query)) ||
-        item.tags.some(tag => tag.toLowerCase().includes(query))
+        (item.tags || []).some(tag => tag.toLowerCase().includes(query))
       );
     }
-
     if (filterActive !== "all") {
       const isActive = filterActive === "active";
       filtered = filtered.filter(item => item.is_active === isActive);
     }
-
     return filtered.sort((a, b) => {
       switch (sortBy) {
-        case "newest":
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case "oldest":
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case "title":
-          return a.title.localeCompare(b.title);
-        default:
-          return 0;
+        case "newest": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "oldest": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "title": return a.title.localeCompare(b.title);
+        default: return 0;
       }
     });
+  };
+
+  const handleAudioFileSelected = async (file: File) => {
+    setSelectedFile(file);
+    setIsExtractingId3(true);
+    try {
+      const tags = await readID3Tags(file);
+      if (tags.title && !newTitle) setNewTitle(tags.title);
+      if (tags.artist && !newArtist) setNewArtist(tags.artist);
+      if (tags.coverBlob) {
+        setCoverFile(new File([tags.coverBlob], 'cover.jpg', { type: tags.coverBlob.type }));
+        setCoverPreview(URL.createObjectURL(tags.coverBlob));
+      } else if (tags.artist && tags.title) {
+        // Try MusicBrainz
+        const mbCover = await searchMusicBrainzCover(tags.artist, tags.title);
+        if (mbCover) setCoverPreview(mbCover);
+      }
+    } catch { /* ignore */ }
+    setIsExtractingId3(false);
   };
 
   const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
     let fileUrl: string | undefined;
+    let coverUrl: string | undefined;
 
     if (selectedFile) {
-      try {
-        fileUrl = await uploadAudio.mutateAsync(selectedFile);
-      } catch {
-        return;
-      }
+      try { fileUrl = await uploadAudio.mutateAsync(selectedFile); } catch { return; }
+    }
+    if (coverFile) {
+      try { coverUrl = await uploadCover.mutateAsync(coverFile); } catch { return; }
+    } else if (coverPreview && coverPreview.startsWith('http')) {
+      coverUrl = coverPreview; // MusicBrainz URL
     }
 
     await createContent.mutateAsync({
@@ -88,17 +111,38 @@ const ContentManager: React.FC = () => {
       tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
       file_url: fileUrl,
       external_url: newExternalUrl || undefined,
+      cover_image_url: coverUrl,
     });
 
-    // Reset form
-    setNewTitle('');
-    setNewType('music');
-    setNewArtist('');
-    setNewDuration('');
-    setNewTags('');
-    setNewExternalUrl('');
-    setSelectedFile(null);
+    resetForm();
     setDialogOpen(false);
+  };
+
+  const resetForm = () => {
+    setNewTitle(''); setNewType('music'); setNewArtist(''); setNewDuration('');
+    setNewTags(''); setNewExternalUrl(''); setSelectedFile(null);
+    setCoverFile(null); setCoverPreview(null);
+  };
+
+  const handleSelect = (id: string, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} items?`)) return;
+    await bulkDelete.mutateAsync(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
+  const selectAll = () => {
+    const ids = getFilteredContent().map(i => i.id);
+    setSelectedIds(new Set(ids));
   };
 
   const filteredContent = getFilteredContent();
@@ -110,8 +154,9 @@ const ContentManager: React.FC = () => {
     artist: item.artist || undefined,
     duration: item.duration || '0:00',
     createdAt: new Date(item.created_at).toLocaleDateString(),
-    tags: item.tags,
+    tags: item.tags || [],
     isActive: item.is_active,
+    thumbnail: item.cover_image_url || undefined,
   });
 
   return (
@@ -136,9 +181,7 @@ const ContentManager: React.FC = () => {
               </div>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="newest">Newest First</SelectItem>
                   <SelectItem value="oldest">Oldest First</SelectItem>
@@ -147,15 +190,17 @@ const ContentManager: React.FC = () => {
               </Select>
 
               <Select value={filterActive} onValueChange={setFilterActive}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Filter" />
-                </SelectTrigger>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Items</SelectItem>
                   <SelectItem value="active">Active Only</SelectItem>
                   <SelectItem value="inactive">Archived Only</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button variant={selectMode ? "destructive" : "outline"} onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}>
+                {selectMode ? 'Cancel' : 'Select'}
+              </Button>
 
               <BulkUpload />
 
@@ -164,9 +209,7 @@ const ContentManager: React.FC = () => {
                   <Button><Plus className="mr-2 h-4 w-4" /> Add Content</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Add New Content</DialogTitle>
-                  </DialogHeader>
+                  <DialogHeader><DialogTitle>Add New Content</DialogTitle></DialogHeader>
                   <form onSubmit={handleCreateContent} className="space-y-4">
                     <div className="space-y-2">
                       <Label>Title</Label>
@@ -200,11 +243,30 @@ const ContentManager: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Audio File</Label>
-                      <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={e => setSelectedFile(e.target.files?.[0] || null)} />
+                      <input ref={fileInputRef} type="file" accept="audio/*" className="hidden"
+                        onChange={e => { if (e.target.files?.[0]) handleAudioFileSelected(e.target.files[0]); }}
+                      />
                       <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="mr-2 h-4 w-4" />
-                        {selectedFile ? selectedFile.name : 'Choose audio file'}
+                        {isExtractingId3 ? 'Reading tags...' : selectedFile ? selectedFile.name : 'Choose audio file'}
                       </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cover Image</Label>
+                      <div className="flex items-center gap-3">
+                        {coverPreview && <img src={coverPreview} alt="Cover" className="h-16 w-16 rounded object-cover" />}
+                        <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
+                          onChange={e => {
+                            if (e.target.files?.[0]) {
+                              setCoverFile(e.target.files[0]);
+                              setCoverPreview(URL.createObjectURL(e.target.files[0]));
+                            }
+                          }}
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
+                          <Image className="mr-2 h-4 w-4" /> {coverPreview ? 'Change' : 'Upload cover'}
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Or External URL</Label>
@@ -220,6 +282,17 @@ const ContentManager: React.FC = () => {
               </Dialog>
             </div>
           </div>
+
+          {selectMode && selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+              <Button variant="outline" size="sm" onClick={selectAll}>Select All</Button>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDelete.isPending}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {bulkDelete.isPending ? 'Deleting...' : `Delete ${selectedIds.size}`}
+              </Button>
+            </div>
+          )}
 
           <div className="space-y-4">
             {isLoading ? (
@@ -237,19 +310,16 @@ const ContentManager: React.FC = () => {
                   <ContentCard
                     key={item.id}
                     item={mapToCardItem(item)}
+                    selectable={selectMode}
+                    selected={selectedIds.has(item.id)}
+                    onSelect={handleSelect}
                     onPlay={() => {
                       const url = item.file_url || item.external_url;
-                      if (url) {
-                        window.open(url, '_blank');
-                      } else {
-                        toast.info('No audio file attached');
-                      }
+                      if (url) window.open(url, '_blank');
+                      else toast.info('No audio file attached');
                     }}
                     onEdit={() => {
-                      updateContent.mutate({
-                        id: item.id,
-                        is_active: !item.is_active,
-                      });
+                      updateContent.mutate({ id: item.id, is_active: !item.is_active });
                     }}
                   />
                 ))}

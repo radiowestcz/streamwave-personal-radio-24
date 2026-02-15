@@ -16,6 +16,7 @@ import Schedule from "./pages/Schedule";
 import Player from "./pages/Player";
 import EmbedPlayer from "./pages/EmbedPlayer";
 import EmbedGenerator from "./pages/EmbedGenerator";
+import RadioSettings from "./pages/RadioSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
             <Route path="/player" element={<ProtectedRoute><Player /></ProtectedRoute>} />
             <Route path="/embed-generator" element={<ProtectedRoute><EmbedGenerator /></ProtectedRoute>} />
+            <Route path="/radio-settings" element={<ProtectedRoute><RadioSettings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

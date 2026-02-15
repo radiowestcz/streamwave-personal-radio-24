@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import AdminHeader from '@/components/AdminHeader';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Play, Pause, SkipForward, Volume2, VolumeX, Mic, Music, FileText, FileAudio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useContentItems, ContentType } from '@/hooks/useContentItems';
+import { useContentItems, useRadioSettings, ContentType } from '@/hooks/useContentItems';
+import { useRadioEngine } from '@/hooks/useRadioEngine';
 import { Loader2 } from 'lucide-react';
 
 const contentTypeIcons: Record<ContentType, JSX.Element> = {
@@ -20,59 +21,68 @@ const contentTypeIcons: Record<ContentType, JSX.Element> = {
 
 const Player: React.FC = () => {
   const { data: contentItems = [], isLoading } = useContentItems();
+  const { data: settings = {} } = useRadioSettings();
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(80);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const crossfadeDuration = parseFloat(settings.crossfade_duration || '3');
+  const underscoreVolume = parseFloat(settings.underscore_volume || '15') / 100;
+
+  const engine = useRadioEngine({ crossfadeDuration, underscoreVolume, settings });
 
   const playableItems = contentItems.filter(item => item.file_url || item.external_url);
   const currentTrack = playableItems[currentTrackIndex];
 
+  // Load track when index changes
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
+    if (currentTrack) {
+      engine.loadTrack(currentTrack);
+      if (engine.isPlaying) engine.play();
     }
-  }, [volume]);
-
-  useEffect(() => {
-    if (audioRef.current && currentTrack) {
-      const url = currentTrack.file_url || currentTrack.external_url;
-      if (url) {
-        audioRef.current.src = url;
-        if (isPlaying) audioRef.current.play().catch(() => {});
-      }
-    }
-  }, [currentTrackIndex, currentTrack]);
+  }, [currentTrackIndex, currentTrack?.id]);
 
   const togglePlayPause = () => {
-    if (!audioRef.current || !currentTrack) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play().catch(() => toast.error('Cannot play this audio'));
-    }
-    setIsPlaying(!isPlaying);
+    if (!currentTrack) return;
+    engine.togglePlayPause();
   };
 
-  const skipTrack = () => {
+  const skipTrack = useCallback(() => {
     if (currentTrackIndex < playableItems.length - 1) {
-      setCurrentTrackIndex(currentTrackIndex + 1);
-      setIsPlaying(true);
-      toast.success("Skipped to next item", { description: playableItems[currentTrackIndex + 1]?.title });
+      const nextItem = playableItems[currentTrackIndex + 1];
+      // Use crossfade for music -> music transitions
+      if (currentTrack?.type === 'music' && nextItem.type === 'music') {
+        engine.crossfadeTo(nextItem, () => {
+          setCurrentTrackIndex(prev => prev + 1);
+        });
+      } else {
+        setCurrentTrackIndex(prev => prev + 1);
+      }
+      toast.success("Next: " + nextItem.title);
     } else {
       toast.error("End of queue");
     }
-  };
+  }, [currentTrackIndex, playableItems, currentTrack, engine]);
+
+  // Auto-advance when track ends
+  useEffect(() => {
+    const audio = engine.mainAudioRef.current;
+    if (!audio) return;
+    const handleEnded = () => skipTrack();
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [skipTrack]);
 
   const formatTime = (seconds: number) => {
+    if (!isFinite(seconds)) return '0:00';
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progress = engine.duration > 0 ? (engine.currentTime / engine.duration) * 100 : 0;
+
+  const getCoverUrl = (item: typeof playableItems[0]) => {
+    return item.cover_image_url || settings[`default_cover_${item.type}`] || null;
+  };
 
   if (isLoading) {
     return (
@@ -86,24 +96,22 @@ const Player: React.FC = () => {
   return (
     <Layout>
       <AdminHeader title="Radio Player" description="Preview your radio experience" />
-      <audio
-        ref={audioRef}
-        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
-        onDurationChange={() => setDuration(audioRef.current?.duration || 0)}
-        onEnded={skipTrack}
-      />
 
       <div className="p-6">
         <div className="grid gap-8 md:grid-cols-7">
           <Card className="md:col-span-5">
-            <CardHeader><CardTitle>Now Playing</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Now Playing {engine.isCrossfading && <span className="text-xs text-muted-foreground ml-2">crossfading...</span>}</CardTitle></CardHeader>
             <CardContent>
               {!currentTrack ? (
                 <p className="text-muted-foreground text-center py-8">No playable content. Add content with audio files first.</p>
               ) : (
                 <div className="flex flex-col md:flex-row gap-6 items-center">
-                  <div className="min-w-[180px] w-[180px] h-[180px] bg-muted rounded-lg flex items-center justify-center">
-                    {contentTypeIcons[currentTrack.type]}
+                  <div className="min-w-[180px] w-[180px] h-[180px] bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                    {getCoverUrl(currentTrack) ? (
+                      <img src={getCoverUrl(currentTrack)!} alt={currentTrack.title} className="w-full h-full object-cover" />
+                    ) : (
+                      contentTypeIcons[currentTrack.type]
+                    )}
                   </div>
 
                   <div className="flex-1 space-y-4 w-full">
@@ -121,23 +129,27 @@ const Player: React.FC = () => {
 
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
+                        <span>{formatTime(engine.currentTime)}</span>
+                        <span>{formatTime(engine.duration)}</span>
                       </div>
-                      <Progress value={progress} className="h-2" />
+                      <Progress value={progress} className="h-2 cursor-pointer" onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const pct = (e.clientX - rect.left) / rect.width;
+                        engine.seek(pct * engine.duration);
+                      }} />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => setVolume(volume === 0 ? 80 : 0)}>
-                          {volume === 0 ? <VolumeX /> : <Volume2 />}
+                        <Button size="icon" variant="ghost" onClick={() => engine.setVolume(engine.volume === 0 ? 80 : 0)}>
+                          {engine.volume === 0 ? <VolumeX /> : <Volume2 />}
                         </Button>
-                        <Slider className="w-24" value={[volume]} max={100} step={1} onValueChange={(v) => setVolume(v[0])} />
+                        <Slider className="w-24" value={[engine.volume]} max={100} step={1} onValueChange={(v) => engine.setVolume(v[0])} />
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <Button size="icon" variant={isPlaying ? "outline" : "default"} className="h-12 w-12 rounded-full" onClick={togglePlayPause}>
-                          {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                        <Button size="icon" variant={engine.isPlaying ? "outline" : "default"} className="h-12 w-12 rounded-full" onClick={togglePlayPause}>
+                          {engine.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                         </Button>
                         <Button size="icon" variant="outline" onClick={skipTrack}>
                           <SkipForward />
@@ -165,8 +177,10 @@ const Player: React.FC = () => {
                         item.type === 'podcast' ? 'var(--podcast)' : 'var(--talk)'
                     }}
                   >
-                    <div className="w-8 h-8 bg-muted flex items-center justify-center rounded">
-                      {contentTypeIcons[item.type]}
+                    <div className="w-8 h-8 bg-muted flex items-center justify-center rounded overflow-hidden">
+                      {getCoverUrl(item) ? (
+                        <img src={getCoverUrl(item)!} alt="" className="w-full h-full object-cover" />
+                      ) : contentTypeIcons[item.type]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm truncate">{item.title}</h4>

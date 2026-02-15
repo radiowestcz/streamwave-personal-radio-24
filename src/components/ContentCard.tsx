@@ -1,12 +1,12 @@
 import React from 'react';
-import { Calendar, Clock, Tag, FileText, Music, Mic, Image } from 'lucide-react';
+import { Calendar, Clock, Tag, FileText, Music, Mic, Image, Radio, Megaphone, Bell } from 'lucide-react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-export type ContentType = 'news' | 'music' | 'podcast' | 'talk';
+export type ContentType = 'news' | 'music' | 'podcast' | 'talk' | 'jingle_news' | 'jingle_talk' | 'jingle_podcast' | 'station_id' | 'promo';
 
 export interface ContentItem {
   id: string;
@@ -44,7 +44,18 @@ const ContentCard: React.FC<ContentCardProps> = ({
     news: 'bg-news text-white',
     music: 'bg-music text-white',
     podcast: 'bg-podcast text-white',
-    talk: 'bg-talk text-white'
+    talk: 'bg-talk text-white',
+    jingle_news: 'bg-jingle-news text-white',
+    jingle_talk: 'bg-jingle-talk text-white',
+    jingle_podcast: 'bg-jingle-podcast text-white',
+    station_id: 'bg-station-id text-white',
+    promo: 'bg-promo text-white',
+  };
+
+  const typeLabels: Record<ContentType, string> = {
+    news: 'News', music: 'Music', podcast: 'Podcast', talk: 'Talk',
+    jingle_news: 'Jingle News', jingle_talk: 'Jingle Talk', jingle_podcast: 'Jingle Podcast',
+    station_id: 'Station ID', promo: 'Promo',
   };
   
   return (
@@ -66,10 +77,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
             {type === 'music' && <Music className="h-12 w-12 text-music" />}
             {type === 'podcast' && <Mic className="h-12 w-12 text-podcast" />}
             {type === 'talk' && <Mic className="h-12 w-12 text-talk" />}
+            {type === 'jingle_news' && <Bell className="h-12 w-12 text-jingle-news" />}
+            {type === 'jingle_talk' && <Bell className="h-12 w-12 text-jingle-talk" />}
+            {type === 'jingle_podcast' && <Bell className="h-12 w-12 text-jingle-podcast" />}
+            {type === 'station_id' && <Radio className="h-12 w-12 text-station-id" />}
+            {type === 'promo' && <Megaphone className="h-12 w-12 text-promo" />}
           </div>
         )}
         <Badge className={cn("absolute top-2 right-2", typeColors[type])}>
-          {type}
+          {typeLabels[type]}
         </Badge>
         {selectable && (
           <div className="absolute top-2 left-2">

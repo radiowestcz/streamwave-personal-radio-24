@@ -15,12 +15,12 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Music, FileText, FileAudio, Clock, Plus, Edit, Calendar } from "lucide-react";
+import { Mic, Music, FileText, FileAudio, Clock, Plus, Edit, Calendar, Bell, Radio, Megaphone } from "lucide-react";
 
 interface TemplateSlot {
   id: string;
   time: string;
-  contentType: 'news' | 'music' | 'podcast' | 'talk';
+  contentType: 'news' | 'music' | 'podcast' | 'talk' | 'jingle_news' | 'jingle_talk' | 'jingle_podcast' | 'station_id' | 'promo';
   duration: string;
   filters?: {
     categories?: string[];
@@ -44,14 +44,19 @@ const mockTemplates: TemplateDefinition[] = [
     description: "Weekday morning template with news focus",
     schedule: ["Weekdays 6:00 AM - 10:00 AM"],
     slots: [
-      { id: "slot-1", time: ":00", contentType: "news", duration: "5:00" },
-      { id: "slot-2", time: ":05", contentType: "music", duration: "7:30" },
-      { id: "slot-3", time: ":13", contentType: "talk", duration: "2:00" },
-      { id: "slot-4", time: ":15", contentType: "music", duration: "15:00" },
-      { id: "slot-5", time: ":30", contentType: "news", duration: "3:00" },
-      { id: "slot-6", time: ":33", contentType: "podcast", duration: "10:00" },
-      { id: "slot-7", time: ":43", contentType: "music", duration: "12:00" },
-      { id: "slot-8", time: ":55", contentType: "talk", duration: "5:00" },
+      { id: "slot-1", time: ":00", contentType: "station_id", duration: "0:10" },
+      { id: "slot-2", time: ":00", contentType: "news", duration: "5:00" },
+      { id: "slot-3", time: ":05", contentType: "jingle_news", duration: "0:05" },
+      { id: "slot-4", time: ":05", contentType: "music", duration: "7:30" },
+      { id: "slot-5", time: ":13", contentType: "promo", duration: "0:30" },
+      { id: "slot-6", time: ":13", contentType: "talk", duration: "2:00" },
+      { id: "slot-7", time: ":15", contentType: "music", duration: "15:00" },
+      { id: "slot-8", time: ":30", contentType: "station_id", duration: "0:10" },
+      { id: "slot-9", time: ":30", contentType: "news", duration: "3:00" },
+      { id: "slot-10", time: ":33", contentType: "jingle_podcast", duration: "0:05" },
+      { id: "slot-11", time: ":33", contentType: "podcast", duration: "10:00" },
+      { id: "slot-12", time: ":43", contentType: "music", duration: "12:00" },
+      { id: "slot-13", time: ":55", contentType: "talk", duration: "5:00" },
     ]
   },
   {
@@ -86,11 +91,22 @@ const mockTemplates: TemplateDefinition[] = [
 const Templates: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateDefinition | null>(null);
   
-  const contentTypeIcons = {
+  const contentTypeIcons: Record<string, JSX.Element> = {
     news: <FileText className="h-5 w-5 text-news" />,
     music: <Music className="h-5 w-5 text-music" />,
     podcast: <FileAudio className="h-5 w-5 text-podcast" />,
-    talk: <Mic className="h-5 w-5 text-talk" />
+    talk: <Mic className="h-5 w-5 text-talk" />,
+    jingle_news: <Bell className="h-5 w-5 text-jingle-news" />,
+    jingle_talk: <Bell className="h-5 w-5 text-jingle-talk" />,
+    jingle_podcast: <Bell className="h-5 w-5 text-jingle-podcast" />,
+    station_id: <Radio className="h-5 w-5 text-station-id" />,
+    promo: <Megaphone className="h-5 w-5 text-promo" />,
+  };
+
+  const contentTypeLabels: Record<string, string> = {
+    news: 'News', music: 'Music', podcast: 'Podcast', talk: 'Talk',
+    jingle_news: 'Jingle News', jingle_talk: 'Jingle Talk', jingle_podcast: 'Jingle Podcast',
+    station_id: 'Station ID', promo: 'Promo',
   };
   
   return (
@@ -200,6 +216,11 @@ const Templates: React.FC = () => {
                         <SelectItem value="music">Music</SelectItem>
                         <SelectItem value="podcast">Podcasts</SelectItem>
                         <SelectItem value="talk">Talk</SelectItem>
+                        <SelectItem value="jingle_news">Jingle News</SelectItem>
+                        <SelectItem value="jingle_talk">Jingle Talk</SelectItem>
+                        <SelectItem value="jingle_podcast">Jingle Podcast</SelectItem>
+                        <SelectItem value="station_id">Station ID</SelectItem>
+                        <SelectItem value="promo">Promo</SelectItem>
                         <SelectItem value="mixed">Mixed</SelectItem>
                       </SelectContent>
                     </Select>
@@ -238,6 +259,11 @@ const Templates: React.FC = () => {
                               <SelectItem value="music">Music</SelectItem>
                               <SelectItem value="podcast">Podcast</SelectItem>
                               <SelectItem value="talk">Talk</SelectItem>
+                              <SelectItem value="jingle_news">Jingle News</SelectItem>
+                              <SelectItem value="jingle_talk">Jingle Talk</SelectItem>
+                              <SelectItem value="jingle_podcast">Jingle Podcast</SelectItem>
+                              <SelectItem value="station_id">Station ID</SelectItem>
+                              <SelectItem value="promo">Promo</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

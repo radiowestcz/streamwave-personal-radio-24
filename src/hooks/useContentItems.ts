@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type ContentType = 'news' | 'music' | 'podcast' | 'talk';
+export type ContentType = 'news' | 'music' | 'podcast' | 'talk' | 'jingle_news' | 'jingle_talk' | 'jingle_podcast' | 'station_id' | 'promo';
 
 export interface ContentItem {
   id: string;

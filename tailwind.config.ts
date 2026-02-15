@@ -79,10 +79,35 @@ export default {
 					light: '#FEF3C7',
 					dark: '#B45309'
 				},
-				talk: {
+			talk: {
 					DEFAULT: '#8B5CF6',
 					light: '#EDE9FE',
 					dark: '#6D28D9'
+				},
+				'jingle-news': {
+					DEFAULT: '#F97316',
+					light: '#FFF7ED',
+					dark: '#C2410C'
+				},
+				'jingle-talk': {
+					DEFAULT: '#A855F7',
+					light: '#FAF5FF',
+					dark: '#7E22CE'
+				},
+				'jingle-podcast': {
+					DEFAULT: '#FBBF24',
+					light: '#FFFBEB',
+					dark: '#A16207'
+				},
+				'station-id': {
+					DEFAULT: '#06B6D4',
+					light: '#ECFEFF',
+					dark: '#0E7490'
+				},
+				promo: {
+					DEFAULT: '#EC4899',
+					light: '#FDF2F8',
+					dark: '#BE185D'
 				}
 			},
 			borderRadius: {

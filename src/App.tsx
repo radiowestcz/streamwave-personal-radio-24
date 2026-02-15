@@ -14,6 +14,8 @@ import ContentManager from "./pages/ContentManager";
 import Templates from "./pages/Templates";
 import Schedule from "./pages/Schedule";
 import Player from "./pages/Player";
+import EmbedPlayer from "./pages/EmbedPlayer";
+import EmbedGenerator from "./pages/EmbedGenerator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,12 +29,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/embed" element={<EmbedPlayer />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/content" element={<ProtectedRoute><ContentManager /></ProtectedRoute>} />
             <Route path="/content/:type" element={<ProtectedRoute><ContentManager /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
             <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
             <Route path="/player" element={<ProtectedRoute><Player /></ProtectedRoute>} />
+            <Route path="/embed-generator" element={<ProtectedRoute><EmbedGenerator /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

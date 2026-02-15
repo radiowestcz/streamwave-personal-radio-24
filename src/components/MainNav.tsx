@@ -64,6 +64,7 @@ const MainNav: React.FC = () => {
       label: "Preview",
       links: [
         { href: "/player", label: "Player", icon: <Play className="w-4 h-4" /> },
+        { href: "/embed-generator", label: "Embed Code", icon: <FileText className="w-4 h-4" /> },
       ]
     }
   ];

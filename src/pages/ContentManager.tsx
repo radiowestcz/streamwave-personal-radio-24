@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, Plus, Upload, Loader2 } from 'lucide-react';
 import { useContentItems, useCreateContent, useDeleteContent, useUpdateContent, useUploadAudio, ContentType } from '@/hooks/useContentItems';
 import ContentCard from '@/components/ContentCard';
+import BulkUpload from '@/components/BulkUpload';
 import { toast } from 'sonner';
 
 const ContentManager: React.FC = () => {
@@ -155,6 +156,8 @@ const ContentManager: React.FC = () => {
                   <SelectItem value="inactive">Archived Only</SelectItem>
                 </SelectContent>
               </Select>
+
+              <BulkUpload />
 
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>

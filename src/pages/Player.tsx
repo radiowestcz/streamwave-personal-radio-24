@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, SkipForward, Volume2, VolumeX, Mic, Music, FileText, FileAudio } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, VolumeX, Mic, Music, FileText, FileAudio, Bell, Radio, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useContentItems, useRadioSettings, ContentType } from '@/hooks/useContentItems';
@@ -16,7 +16,12 @@ const contentTypeIcons: Record<ContentType, JSX.Element> = {
   news: <FileText className="h-5 w-5 text-news" />,
   music: <Music className="h-5 w-5 text-music" />,
   podcast: <FileAudio className="h-5 w-5 text-podcast" />,
-  talk: <Mic className="h-5 w-5 text-talk" />
+  talk: <Mic className="h-5 w-5 text-talk" />,
+  jingle_news: <Bell className="h-5 w-5 text-jingle-news" />,
+  jingle_talk: <Bell className="h-5 w-5 text-jingle-talk" />,
+  jingle_podcast: <Bell className="h-5 w-5 text-jingle-podcast" />,
+  station_id: <Radio className="h-5 w-5 text-station-id" />,
+  promo: <Megaphone className="h-5 w-5 text-promo" />,
 };
 
 const Player: React.FC = () => {

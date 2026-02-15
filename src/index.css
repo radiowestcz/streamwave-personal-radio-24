@@ -183,4 +183,44 @@
   .template-slot.talk {
     @apply bg-talk-light/10 border-talk;
   }
+
+  .template-slot.jingle_news {
+    @apply bg-jingle-news-light/10 border-jingle-news;
+  }
+
+  .template-slot.jingle_talk {
+    @apply bg-jingle-talk-light/10 border-jingle-talk;
+  }
+
+  .template-slot.jingle_podcast {
+    @apply bg-jingle-podcast-light/10 border-jingle-podcast;
+  }
+
+  .template-slot.station_id {
+    @apply bg-station-id-light/10 border-station-id;
+  }
+
+  .template-slot.promo {
+    @apply bg-promo-light/10 border-promo;
+  }
+
+  .content-type-jingle_news {
+    @apply border-l-4 border-jingle-news;
+  }
+
+  .content-type-jingle_talk {
+    @apply border-l-4 border-jingle-talk;
+  }
+
+  .content-type-jingle_podcast {
+    @apply border-l-4 border-jingle-podcast;
+  }
+
+  .content-type-station_id {
+    @apply border-l-4 border-station-id;
+  }
+
+  .content-type-promo {
+    @apply border-l-4 border-promo;
+  }
 }

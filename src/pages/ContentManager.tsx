@@ -166,12 +166,17 @@ const ContentManager: React.FC = () => {
       <div className="p-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between gap-4">
-            <TabsList className="w-full md:w-auto">
-              <TabsTrigger value="all">All Content</TabsTrigger>
+            <TabsList className="w-full md:w-auto flex-wrap">
+              <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="news">News</TabsTrigger>
               <TabsTrigger value="music">Music</TabsTrigger>
               <TabsTrigger value="podcast">Podcasts</TabsTrigger>
               <TabsTrigger value="talk">Talk</TabsTrigger>
+              <TabsTrigger value="jingle_news">Jingle News</TabsTrigger>
+              <TabsTrigger value="jingle_talk">Jingle Talk</TabsTrigger>
+              <TabsTrigger value="jingle_podcast">Jingle Podcast</TabsTrigger>
+              <TabsTrigger value="station_id">Station ID</TabsTrigger>
+              <TabsTrigger value="promo">Promo</TabsTrigger>
             </TabsList>
 
             <div className="flex flex-col sm:flex-row gap-2">
@@ -225,6 +230,11 @@ const ContentManager: React.FC = () => {
                             <SelectItem value="music">Music</SelectItem>
                             <SelectItem value="podcast">Podcast</SelectItem>
                             <SelectItem value="talk">Talk</SelectItem>
+                            <SelectItem value="jingle_news">Jingle News</SelectItem>
+                            <SelectItem value="jingle_talk">Jingle Talk</SelectItem>
+                            <SelectItem value="jingle_podcast">Jingle Podcast</SelectItem>
+                            <SelectItem value="station_id">Station ID</SelectItem>
+                            <SelectItem value="promo">Promo</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useContentItems, useRadioSettings, ContentType } from '@/hooks/useContentItems';
-import { Play, Pause, SkipForward, Volume2, VolumeX, Music, FileText, FileAudio, Mic } from 'lucide-react';
+import { Play, Pause, SkipForward, Volume2, VolumeX, Music, FileText, FileAudio, Mic, Bell, Radio, Megaphone } from 'lucide-react';
 
 const contentTypeIcons: Record<ContentType, JSX.Element> = {
   news: <FileText className="h-4 w-4" />,
   music: <Music className="h-4 w-4" />,
   podcast: <FileAudio className="h-4 w-4" />,
   talk: <Mic className="h-4 w-4" />,
+  jingle_news: <Bell className="h-4 w-4" />,
+  jingle_talk: <Bell className="h-4 w-4" />,
+  jingle_podcast: <Bell className="h-4 w-4" />,
+  station_id: <Radio className="h-4 w-4" />,
+  promo: <Megaphone className="h-4 w-4" />,
 };
 
 const EmbedPlayer: React.FC = () => {

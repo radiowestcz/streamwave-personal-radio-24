@@ -19,6 +19,7 @@ export const useRadioEngine = (options: RadioEngineOptions = {}) => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(80);
   const [isCrossfading, setIsCrossfading] = useState(false);
+  const currentTypeRef = useRef<ContentType | null>(null);
 
   const crossfadeTimerRef = useRef<number | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -97,21 +98,27 @@ export const useRadioEngine = (options: RadioEngineOptions = {}) => {
     const url = item.file_url || item.external_url;
     if (!url) return;
 
+    currentTypeRef.current = item.type;
     mainAudioRef.current.src = url;
     mainAudioRef.current.volume = volume / 100;
 
-    // Handle underscore based on item type or per-item setting
-    const itemUnderscore = item.underscore_url;
-    if (itemUnderscore && underscoreRef.current) {
-      underscoreRef.current.src = itemUnderscore;
-      if (item.type === 'news' || item.type === 'talk') {
-        underscoreRef.current.volume = underscoreVolume * (volume / 100);
-        underscoreRef.current.play().catch(() => {});
-      }
-    } else {
-      updateUnderscore(item.type);
+    // Stop any existing underscore first
+    if (underscoreRef.current) {
+      underscoreRef.current.pause();
+      underscoreRef.current.currentTime = 0;
     }
-  }, [volume, underscoreVolume, updateUnderscore]);
+
+    const needsUnderscore = item.type === 'news' || item.type === 'talk';
+    if (!needsUnderscore) return;
+
+    // Determine underscore source: per-item or global setting
+    const underscoreUrl = item.underscore_url || settings[`default_underscore_${item.type}`];
+    if (underscoreUrl && underscoreRef.current) {
+      underscoreRef.current.src = underscoreUrl;
+      underscoreRef.current.volume = underscoreVolume * (volume / 100);
+      // Will be played when play() is called
+    }
+  }, [volume, underscoreVolume, settings]);
 
   // Crossfade to next track
   const crossfadeTo = useCallback((nextItem: ContentItem, onComplete: () => void) => {
@@ -163,9 +170,15 @@ export const useRadioEngine = (options: RadioEngineOptions = {}) => {
 
   const play = useCallback(() => {
     mainAudioRef.current?.play().catch(() => {});
+    // Resume underscore for news/talk
+    const type = currentTypeRef.current;
+    if ((type === 'news' || type === 'talk') && underscoreRef.current?.src) {
+      underscoreRef.current.volume = underscoreVolume * (volume / 100);
+      underscoreRef.current.play().catch(() => {});
+    }
     setIsPlaying(true);
     startTimeTracking();
-  }, [startTimeTracking]);
+  }, [startTimeTracking, underscoreVolume, volume]);
 
   const pause = useCallback(() => {
     mainAudioRef.current?.pause();
